@@ -4,7 +4,7 @@
 
 ## 📁 Структура проекту
 
----
+```
 lab1.sln — рішення Visual Studio
 │
 ├── lab1/ — консольний додаток
@@ -13,7 +13,7 @@ lab1.sln — рішення Visual Studio
 └── MusInstrumentsClassLibrary/
 ├── *.cs — класи музыкальних инструментів
 └── MusInstruments.csproj — проект бібліотеки класів
----
+```
 
 ---
 
