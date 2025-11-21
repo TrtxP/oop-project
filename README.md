@@ -18,8 +18,6 @@ lab1.sln — рішення Visual Studio
 ```
 
 ---
-
----
 ## Запуск проектів
 
 1. Склонувати мої проекти: git clone https://git.ztu.edu.ua/zipz241_chii/ztudotnet2025.git
