@@ -10,14 +10,14 @@ class Program
         Console.OutputEncoding = Encoding.UTF8;
 
         Console.WriteLine("--------------------------------------------------------------");
-        Console.WriteLine("Лабораторну робота №2\nВиконав:\nстудент: Черепанов І.І.\nгрупа:ЗІПЗ-24-1");
+        Console.WriteLine("Лабораторну робота №2\nВиконав:\nстудент: Черепанов І.І.\nгрупа: ЗІПЗ-24-1");
         Console.WriteLine("--------------------------------------------------------------");
         Console.WriteLine("Ласкаво просимо у банкомат!");
 
         var bank = new Bank();
 
-        var account1 = new Account("3456234556784567", "Черепанов Ілля", 0, "3451", false, 0, new DateTime(2028, 09, 15), "UAH", 100000m, 0, new DateTime(2025, 11, 23), new List<Transaction>(), AccountStatus.Active);
-        var account2 = new Account("2345547434526786", "Левченко Крістіна", 0, "4655", false, 0, new DateTime(2028, 10, 12), "UAH", 100000m, 0, new DateTime(2025, 10, 26), new List<Transaction>(), AccountStatus.Active);
+        var account1 = new Account("3456234556784567", "Черепанов Ілля", 0, "3451");
+        var account2 = new Account("2345547434526786", "Левченко Крістіна", 0, "4655");
 
         bank.RegisterAccount(account1);
         bank.RegisterAccount(account2);
