@@ -170,13 +170,6 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (IsMaintenanceExpired())
-            {
-                State = AtmState.OutOfService;
-                BalanceChecked?.Invoke(CurrentAccount, CurrentAccount.Balance, "Банкомат потребує обслуговування.");
-                return;
-            }
-
             BalanceChecked?.Invoke(CurrentAccount, CurrentAccount.Balance, "Баланс успішно отримано.");
         }
 
@@ -253,13 +246,6 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (IsMaintenanceExpired())
-            {
-                State = AtmState.OutOfService;
-                WithdrawCompleted?.Invoke(CurrentAccount, amount, false, "Банкомат потребує обслуговування.");
-                return;
-            }
-
             var transaction = new Transaction(
                 TransactionType.Widthdraw,
                 amount,
@@ -310,13 +296,6 @@ namespace ClassLibraryATM.Classes
             {
                 State = AtmState.Authenticated;
                 DepositCompleted?.Invoke(CurrentAccount, amount, false, "Некоректна сума.");
-                return;
-            }
-
-            if (IsMaintenanceExpired())
-            {
-                State = AtmState.OutOfService;
-                DepositCompleted?.Invoke(CurrentAccount, amount, false, "Банкомат потребує обслуговування.");
                 return;
             }
 
@@ -387,13 +366,6 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (IsMaintenanceExpired())
-            {
-                State = AtmState.OutOfService;
-                TransferCompleted?.Invoke(CurrentAccount, toAccount, amount, false, "Банкомат потребує обслуговування.");
-                return;
-            }
-
             var trasnsaction = new Transaction(
                 TransactionType.Transfer,
                 amount,
@@ -411,11 +383,6 @@ namespace ClassLibraryATM.Classes
             toAccount.History.Add(trasnsaction);
 
             TransferCompleted?.Invoke(CurrentAccount, toAccount, amount, true, "Перехаування виконано.");
-        }
-
-        private bool IsMaintenanceExpired()
-        {
-            return (DateTime.Now - LastServiceDate).TotalDays > 180;
         }
     }
 }

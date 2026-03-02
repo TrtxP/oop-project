@@ -21,7 +21,7 @@ namespace ClassLibraryATM.Classes
 
         public Account() {
             CardNumber = "0000 0000 0000 0000";
-            OwnerFullName = "Левченко Василіса";
+            OwnerFullName = "Прізвище Ім'я";
             Balance = 0;
             PinCode = "0000";
             IsBlocked = false;
@@ -35,48 +35,21 @@ namespace ClassLibraryATM.Classes
             Status = AccountStatus.Active;
         }
 
-        public Account(string cardNumber, string ownerFullName, decimal balance, string pinCode, string currency) : this()
+        public Account(string cardNumber, string ownerFullName, decimal balance, string pinCode) : this()
         {
             if (cardNumber != null && cardNumber.Replace(" ", "").Length == 16 && cardNumber.All(char.IsDigit))
             {
                 CardNumber = cardNumber;
             }
-            OwnerFullName = ownerFullName;
-            Balance = balance;
-            if (pinCode != null && pinCode.Length == 4 && pinCode.All(char.IsDigit))
-            {
-                PinCode = pinCode;
-            }
-            if (currency != null && (currency.Length == 3 || currency.Length == 1))
-            {
-                Currency = currency;
-            }
-        }
 
-        public Account(string cardNumber, string ownerFullName, decimal balance, string pinCode, bool isBlocked, int failedPinAttempts, DateTime expireDate, string currency, decimal dailyWithdrawLimit, decimal withdrawnToday, DateTime lastWithdrawDate, List<Transaction> history, AccountStatus status) : this()
-        {
-            if (cardNumber != null && cardNumber.Replace(" ", "").Length == 16 && cardNumber.All(char.IsDigit))
-            {
-                CardNumber = cardNumber;
-            }
             OwnerFullName = ownerFullName;
+
             Balance = balance;
+
             if (pinCode != null && pinCode.Length == 4 && pinCode.All(char.IsDigit))
             {
                 PinCode = pinCode;
             }
-            IsBlocked = isBlocked;
-            FailedPinAttempts = failedPinAttempts;
-            ExpireDate = expireDate;
-            if (currency != null && (currency.Length == 3 || currency.Length == 1))
-            {
-                Currency = currency;
-            }
-            DailyWithdrawLimit = dailyWithdrawLimit;
-            WithdrawnToday = withdrawnToday;
-            LastWithdrawDate = lastWithdrawDate;
-            History = history;
-            Status = status;
         }
 
         public Account(Account other)
