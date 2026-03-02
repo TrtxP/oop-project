@@ -118,6 +118,6 @@ I check the entered card data before using it.
 
 [Program.cs](./lab2/lab2/Program.cs)
 
-For checking input validation of selecting choises using [**TryParse**](./lab2/lab2/Program.cs#L130-L134) method.
+For checking input validation of selecting choises using [**TryParse**](./lab2/lab2/Program.cs#L125-L129) method.
 
 ---
