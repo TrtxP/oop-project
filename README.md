@@ -22,6 +22,6 @@ lab1.sln — рішення Visual Studio
 ---
 ## Запуск проекту
 
-1. Склонувати мій проект: git clone https://git.ztu.edu.ua/zipz241_chii/lab1-dot-net.git
+1. Склонувати мій проект: git clone https://git.ztu.edu.ua/zipz241_chii/ztudotnet2025.git
 2. Відкрити у Visual Studio 2022 та зібрати його 
 ---
