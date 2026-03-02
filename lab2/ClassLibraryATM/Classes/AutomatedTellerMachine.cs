@@ -9,7 +9,7 @@ namespace ClassLibraryATM.Classes
         public decimal CashAvailable { get; set; }
         private bool IsOnline { get; set; }
         public Bank OwnerBank { get; private set; }
-        private DateTime LastServiceDate { get; set; }
+        public DateTime LastServiceDate { get; private set; }
         private decimal MaxWithdrawPerOperation { get; set; }
         private decimal FeePercent { get; set; }
         public List<Transaction> AtmJournal { get; private set; }
@@ -19,8 +19,8 @@ namespace ClassLibraryATM.Classes
         public AtmState State;
 
         public AutomatedTellerMachine() {
-            AtmId = "0";
-            Address = "Вулиця Героїв Чорнобилю";
+            AtmId = "1";
+            Address = "Вулиця Героїв Чорнобиля";
             CashAvailable = 0;
             IsOnline = true;
             OwnerBank = new Bank();
@@ -32,19 +32,13 @@ namespace ClassLibraryATM.Classes
             State = AtmState.Authenticated;
         }
 
-        public AutomatedTellerMachine(string atmId, string address, decimal cashAvailable, bool isOnline, Bank ownerBank) 
+        public AutomatedTellerMachine(string atmId, string address, decimal cashAvailable, bool isOnline, Bank ownerBank) : this()
         {
             AtmId = atmId;
             Address = address;
             CashAvailable = cashAvailable;
             IsOnline = isOnline;
             OwnerBank = ownerBank;
-            LastServiceDate = new DateTime(2025, 09, 20, 18, 12, 34);
-            MaxWithdrawPerOperation = 30000m;
-            FeePercent = 0;
-            AtmJournal = new List<Transaction>();
-            CurrentAccount = new Account();
-            State = AtmState.Authenticated;
         }
 
         public AutomatedTellerMachine(Bank ownerBank)
