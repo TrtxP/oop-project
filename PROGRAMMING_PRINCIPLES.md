@@ -106,7 +106,7 @@ Project uses an OOP approach, including:
 - Fields
 - Encapsylation
 
-For example in [Program.cs](./lab2/lab2/Program.cs#L17-L25) the instances of classes Bank, AutomatedTellerMachine and Account are declared and processing the interaction of ones.
+For example in [Program.cs](./lab2/lab2/Program.cs#L18-L26) the instances of classes Bank, AutomatedTellerMachine and Account are declared and processing the interaction of ones.
 
 It's completely according to OOP principles.
 
