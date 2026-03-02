@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.ComponentModel.Design;
+using System.Text;
 using ClassLibraryATM.Classes;
 using ClassLibraryATM.Enums;
 
@@ -26,8 +27,6 @@ class Program
 
         ATM.Authenticated += (card, success, msg) =>
         {
-            Console.WriteLine($"Подія авторизації => {msg} (success = {success})");
-
             if (!success)
             {
                 Console.WriteLine("Авторизація неуспішна! Спробуйте ще раз.\n");
@@ -62,9 +61,7 @@ class Program
             if (ok) Console.WriteLine($"Переказано {amt} на {to?.CardNumber}");
         };
 
-        bool execute = true;
-
-        while (execute)
+        while (true)
         {
             Console.WriteLine("(Для виходу, введіть 'exit')");
             Console.Write("Номер картки: ");
@@ -99,7 +96,6 @@ class Program
                 Console.WriteLine($"Стан: {ATM.State}");
                 Console.WriteLine("--------------------------------------------------------------");
 
-                execute = false;
                 break;
             }
 
@@ -117,8 +113,7 @@ class Program
                 continue;
             }
 
-            bool exitMenu = false;
-            while (!exitMenu)
+            while (true)
             {
                 Console.WriteLine("\nМеню:");
                 Console.WriteLine("1. Баланс");
@@ -131,6 +126,12 @@ class Program
                 {
                     Console.WriteLine("Некоректний вибір");
                     continue;
+                }
+
+                if (choice == 5)
+                {
+                    ATM.Logout();
+                    break;
                 }
 
                 switch (choice)
@@ -157,11 +158,6 @@ class Program
                         Console.Write("Сума переказу: ");
                         decimal t = decimal.Parse(Console.ReadLine()!);
                         ATM.Transfer(dest, t);
-                        break;
-
-                    case 5:
-                        exitMenu = true;
-                        ATM.Logout();
                         break;
 
                     default:
