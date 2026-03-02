@@ -66,7 +66,7 @@ For example, in Account.cs, the balance is changed in **Credit** method, not dir
 
 [Account.cs](./lab2/ClassLibraryATM/Classes/Account.cs#L129-L144)
 
-It avoid uncontrollable changing the state of object.
+It avoid the uncontrollable changing object state.
 
 ---
 
@@ -118,6 +118,6 @@ I check the entered card data before using it.
 
 [Program.cs](./lab2/lab2/Program.cs)
 
-For checking input validation of selecting choises using [**TryParse**](./lab2/lab2/Program.cs#L130-L134).
+For checking input validation of selecting choises using [**TryParse**](./lab2/lab2/Program.cs#L130-L134) method.
 
 ---
