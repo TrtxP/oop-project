@@ -4,6 +4,10 @@ namespace ClassLibraryATM.Classes
 {
     public class Bank : IBank
     {
+        private readonly Dictionary<string, IAccount> _accounts;
+        private decimal _transferFeePercent;
+        private decimal _minBalanceRequired;
+
         public string? Name { get; private set; }
         private Dictionary<string, IAccount> _accounts;
         public IReadOnlyDictionary<string, IAccount> Accounts => _accounts.AsReadOnly();
@@ -15,6 +19,7 @@ namespace ClassLibraryATM.Classes
         {
             Name = "ATM №12";
             _accounts = new Dictionary<string, IAccount>();
+            Atms = new List<AutomatedTellerMachine>();
             _transferFeePercent = 0;
             _minBalanceRequired = 0;
             BackLedger = new List<Transaction>();
@@ -49,8 +54,8 @@ namespace ClassLibraryATM.Classes
         {
             if (acc?.CardNumber != null)
             {
-                _accounts[acc.CardNumber] = acc;
-            }
+            _accounts[acc.CardNumber] = acc;
+        }
         }
 
         public IAccount? FindAccount(string cardNumber)

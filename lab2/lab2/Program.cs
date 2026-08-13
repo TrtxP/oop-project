@@ -1,3 +1,4 @@
+using System.ComponentModel.Design;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using ClassLibraryATM.Classes;
@@ -29,6 +30,9 @@ class Program
         var account1 = new Account("3456 2345 5678 4567", "Череланов Іллія", 5000m, "3451");
         var account2 = new Account("2345 5474 3452 6786", "Левченко Крістіна", 3000m, "4655");
 
+        var account1 = new Account("3456234556784567", "Черепанов Ілля", 0, "3451");
+        var account2 = new Account("2345547434526786", "Левченко Крістіна", 0, "4655");
+
         bank.RegisterAccount(account1);
         bank.RegisterAccount(account2);
 
@@ -51,7 +55,7 @@ class Program
     }
 
     static void ConfigureServices(ServiceCollection services)
-    {
+        {
         // Validators
         services.AddSingleton<ICardValidator, CardValidator>();
         services.AddSingleton<IPinValidator, PinValidator>();
@@ -82,7 +86,7 @@ class Program
     }
 
     static void SubscribeToEvents(IAtm atm)
-    {
+            {
         atm.Authenticated += (sender, e) =>
         {
             if (!e.Success)
@@ -132,6 +136,31 @@ class Program
 
             if (card?.ToLower() == "exit" || pin?.ToLower() == "exit")
             {
+                Console.WriteLine("\n--------------------------------------------------------------");
+                Console.WriteLine("Завершення роботи програм. Формування звіту...");
+
+                Console.WriteLine("\n=== Звіт про транзакції ===");
+
+                foreach (var acc in bank.Accounts)
+                {
+                    Console.WriteLine($"\nКартка: {acc.Key} - {acc.Value.OwnerFullName}");
+                    if (acc.Value.History.Count == 0)
+                    {
+                        Console.WriteLine("  (Транзакцій немає)");
+                        continue;
+                    }
+
+                    foreach (var tr in acc.Value.History)
+                    {
+                        Console.WriteLine($"  {tr.Date}: {tr.Type} - {tr.Amount} UAH");
+                    }
+                }
+
+                Console.WriteLine($"\n=== Стан банкомата ===");
+                Console.WriteLine($"Кількість грошей у наявності: {ATM.CashAvailable}");
+                Console.WriteLine($"Стан: {ATM.State}");
+                Console.WriteLine("--------------------------------------------------------------");
+
                 break;
             }
 

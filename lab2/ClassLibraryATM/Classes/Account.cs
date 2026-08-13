@@ -13,6 +13,12 @@ namespace ClassLibraryATM.Classes
         private int _failedPinAttempts;
         private DateTime _expireDate;
         private string? _currency;
+        private DateTime _lastWithdrawDate;
+
+        public string? CardNumber { get; private set; }
+        public string? OwnerFullName { get; private set; }
+        public decimal Balance { get; private set; }
+        public AccountStatus Status { get; private set; }
         public decimal DailyWithdrawLimit { get; private set; }
         public decimal WithdrawnToday { get; private set; }
         private DateTime _lastWithdrawDate;
