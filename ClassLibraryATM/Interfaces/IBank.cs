@@ -1,3 +1,6 @@
+using ClassLibraryATM.Classes;
+using ClassLibraryATM.Interfaces;
+
 namespace ClassLibraryATM.Interfaces
 {
     public interface IBank

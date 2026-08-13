@@ -1,3 +1,4 @@
+using ClassLibraryATM.Classes;
 using ClassLibraryATM.Enums;
 
 namespace ClassLibraryATM.Interfaces
