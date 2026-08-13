@@ -1,6 +1,5 @@
 # Visual Studio 
 .vs/
-.vs/CopilotShapshots/
 *.suo
 *.user
 *.userosscache
