@@ -1,4 +1,5 @@
 using ClassLibraryATM.Classes;
+using ClassLibraryATM.Events;
 using ClassLibraryATM.Interfaces;
 using ClassLibraryATM.Repositories;
 using ClassLibraryATM.Services;
@@ -35,11 +36,12 @@ class Program
         bank.RegisterAccount(account2);
 
         // Получение ATM из контейнера с инвертированными зависимостями
+        var atmEventPublisher = serviceProvider.GetRequiredService<IAtmEventPublisher>();
         var atmFactory = serviceProvider.GetRequiredService<Func<IBank, IAtm>>();
         var atm = atmFactory(bank);
 
         // Подписка на события
-        SubscribeToEvents(atm);
+        SubscribeToEvents(atmEventPublisher);
 
         // Главный цикл
         RunAtmInterface(atm, bank);
@@ -70,6 +72,9 @@ class Program
         services.AddSingleton<IAccountRepository, AccountRepository>();
         services.AddSingleton<IBankRepository, BankRepository>();
 
+        // Event Publisher
+        services.AddSingleton<IAtmEventPublisher, AtmEventPublisher>();
+
         // Factory для создания ATM с инъекциями
         services.AddSingleton<Func<IBank, IAtm>>(sp => (bank) =>
             new AutomatedTellerMachine(
@@ -78,14 +83,15 @@ class Program
                 sp.GetRequiredService<IWithdrawService>(),
                 sp.GetRequiredService<IDepositService>(),
                 sp.GetRequiredService<ITransferService>(),
-                sp.GetRequiredService<ITransactionService>()
+                sp.GetRequiredService<ITransactionService>(),
+                sp.GetRequiredService<IAtmEventPublisher>()
             )
         );
     }
 
-    static void SubscribeToEvents(IAtm atm)
+    static void SubscribeToEvents(IAtmEventPublisher atmEventPublisher)
             {
-        atm.Authenticated += (sender, e) =>
+        atmEventPublisher.Authenticated += (sender, e) =>
         {
             if (!e.Success)
             {
@@ -97,25 +103,25 @@ class Program
             }
         };
 
-        atm.BalanceChecked += (sender, e) =>
+        atmEventPublisher.BalanceChecked += (sender, e) =>
         {
             Console.WriteLine(e.Message);
             Console.WriteLine($"Баланс: {e.Balance}");
         };
 
-        atm.WithdrawCompleted += (sender, e) =>
+        atmEventPublisher.WithdrawCompleted += (sender, e) =>
         {
             Console.WriteLine(e.Message);
             if (e.Success) Console.WriteLine($"Знято: {e.Amount}");
         };
 
-        atm.DepositCompleted += (sender, e) =>
+        atmEventPublisher.DepositCompleted += (sender, e) =>
         {
             Console.WriteLine(e.Message);
             if (e.Success) Console.WriteLine($"Поповнено: {e.Amount}");
         };
 
-        atm.TransferCompleted += (sender, e) =>
+        atmEventPublisher.TransferCompleted += (sender, e) =>
         {
             Console.WriteLine(e.Message);
             if (e.Success) Console.WriteLine($"Переказано {e.Amount} на {e.ToAccount?.CardNumber}");

@@ -1,5 +1,7 @@
 using ClassLibraryATM.Classes;
+using ClassLibraryATM.Delegates;
 using ClassLibraryATM.Enums;
+using ClassLibraryATM.Events;
 
 namespace ClassLibraryATM.Interfaces
 {
@@ -12,12 +14,6 @@ namespace ClassLibraryATM.Interfaces
         AtmState State { get; }
         IAccount? CurrentAccount { get; }
         List<Transaction> AtmJournal { get; }
-
-        event EventHandler<AuthenticatedEventArgs>? Authenticated;
-        event EventHandler<BalanceCheckedEventArgs>? BalanceChecked;
-        event EventHandler<WithdrawCompletedEventArgs>? WithdrawCompleted;
-        event EventHandler<DepositCompletedEventArgs>? DepositCompleted;
-        event EventHandler<TransferCompletedEventArgs>? TransferCompleted;
 
         bool Authenticate(string cardNumber, string pin);
         void CheckBalance();

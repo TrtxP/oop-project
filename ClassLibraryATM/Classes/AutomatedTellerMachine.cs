@@ -1,4 +1,5 @@
 using ClassLibraryATM.Enums;
+using ClassLibraryATM.Events;
 using ClassLibraryATM.Interfaces;
 using ClassLibraryATM.Services;
 
@@ -20,11 +21,7 @@ namespace ClassLibraryATM.Classes
 
         public AtmState State { get; private set; }
 
-        public event EventHandler<AuthenticatedEventArgs>? Authenticated;
-        public event EventHandler<BalanceCheckedEventArgs>? BalanceChecked;
-        public event EventHandler<WithdrawCompletedEventArgs>? WithdrawCompleted;
-        public event EventHandler<DepositCompletedEventArgs>? DepositCompleted;
-        public event EventHandler<TransferCompletedEventArgs>? TransferCompleted;
+        private readonly IAtmEventPublisher _atmEventsPublichser;
 
         private readonly IAuthenticationService _authService;
         private readonly IWithdrawService _withdrawService;
@@ -50,6 +47,7 @@ namespace ClassLibraryATM.Classes
             _depositService = new DepositService(new Validators.AmountValidator());
             _transferService = new TransferService(new Validators.AmountValidator());
             _transactionService = new TransactionService();
+            _atmEventsPublichser = new AtmEventPublisher();
         }
 
         public AutomatedTellerMachine(string atmId, string address, decimal cashAvailable, bool isOnline, IBank ownerBank) : this()
@@ -78,7 +76,8 @@ namespace ClassLibraryATM.Classes
             IWithdrawService withdrawService,
             IDepositService depositService,
             ITransferService transferService,
-            ITransactionService transactionService)
+            ITransactionService transactionService,
+            IAtmEventPublisher atmEventPublisher)
         {
             OwnerBank = ownerBank ?? throw new ArgumentNullException(nameof(ownerBank));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
@@ -86,6 +85,7 @@ namespace ClassLibraryATM.Classes
             _depositService = depositService ?? throw new ArgumentNullException(nameof(depositService));
             _transferService = transferService ?? throw new ArgumentNullException(nameof(transferService));
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
+            _atmEventsPublichser = atmEventPublisher ?? throw new ArgumentNullException(nameof(atmEventPublisher));
 
             _isOnline = true;
             _maxWithdrawPerOperation = 30000m;
@@ -106,7 +106,7 @@ namespace ClassLibraryATM.Classes
             if (!_isOnline)
             {
                 State = AtmState.OutOfService;
-                Authenticated?.Invoke(this, new AuthenticatedEventArgs
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber ?? "NULL",
                     Success = false,
@@ -118,7 +118,7 @@ namespace ClassLibraryATM.Classes
             if (string.IsNullOrWhiteSpace(cardNumber) || string.IsNullOrWhiteSpace(pin))
             {
                 State = AtmState.CardInserted;
-                Authenticated?.Invoke(this, new AuthenticatedEventArgs
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber ?? "NULL",
                     Success = false,
@@ -131,7 +131,7 @@ namespace ClassLibraryATM.Classes
 
             if (account == null)
             {
-                Authenticated?.Invoke(this, new AuthenticatedEventArgs
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber,
                     Success = false,
@@ -146,7 +146,7 @@ namespace ClassLibraryATM.Classes
             {
                 CurrentAccount = account;
                 State = AtmState.Authenticated;
-                Authenticated?.Invoke(this, new AuthenticatedEventArgs
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber,
                     Success = true,
@@ -157,7 +157,7 @@ namespace ClassLibraryATM.Classes
             else
             {
                 State = AtmState.CardInserted;
-                Authenticated?.Invoke(this, new AuthenticatedEventArgs
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber,
                     Success = false,
@@ -171,7 +171,7 @@ namespace ClassLibraryATM.Classes
         {
             if (CurrentAccount == null)
             {
-                BalanceChecked?.Invoke(this, new BalanceCheckedEventArgs
+                _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
                 {
                     Account = null,
                     Balance = 0,
@@ -182,7 +182,7 @@ namespace ClassLibraryATM.Classes
 
             if (State != AtmState.Authenticated)
             {
-                BalanceChecked?.Invoke(this, new BalanceCheckedEventArgs
+                _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
                 {
                     Account = CurrentAccount,
                     Balance = 0,
@@ -191,7 +191,7 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            BalanceChecked?.Invoke(this, new BalanceCheckedEventArgs
+            _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
             {
                 Account = CurrentAccount,
                 Balance = CurrentAccount.Balance,
@@ -203,7 +203,7 @@ namespace ClassLibraryATM.Classes
         {
             if (CurrentAccount == null)
             {
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = null,
                     Amount = amount,
@@ -216,7 +216,7 @@ namespace ClassLibraryATM.Classes
             if (!_isOnline)
             {
                 State = AtmState.OutOfService;
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -228,7 +228,7 @@ namespace ClassLibraryATM.Classes
 
             if (State != AtmState.Authenticated)
             {
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -241,7 +241,7 @@ namespace ClassLibraryATM.Classes
             if (CurrentAccount.Status != AccountStatus.Active)
             {
                 State = AtmState.CardInserted;
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -254,7 +254,7 @@ namespace ClassLibraryATM.Classes
             if (amount <= 0)
             {
                 State = AtmState.Authenticated;
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -266,7 +266,7 @@ namespace ClassLibraryATM.Classes
 
             if (amount > _maxWithdrawPerOperation)
             {
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -278,7 +278,7 @@ namespace ClassLibraryATM.Classes
 
             if (!_withdrawService.CanWithdraw(CurrentAccount, amount, CashAvailable))
             {
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -302,7 +302,7 @@ namespace ClassLibraryATM.Classes
                 _transactionService.RecordTransaction(CurrentAccount, transaction);
                 AtmJournal.Add(transaction);
 
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -312,7 +312,7 @@ namespace ClassLibraryATM.Classes
             }
             catch (Exception ex)
             {
-                WithdrawCompleted?.Invoke(this, new WithdrawCompletedEventArgs
+                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -326,7 +326,7 @@ namespace ClassLibraryATM.Classes
         {
             if (CurrentAccount == null)
             {
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = null,
                     Amount = amount,
@@ -338,7 +338,7 @@ namespace ClassLibraryATM.Classes
 
             if (State != AtmState.Authenticated)
             {
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -350,7 +350,7 @@ namespace ClassLibraryATM.Classes
 
             if (amount <= 0)
             {
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -362,7 +362,7 @@ namespace ClassLibraryATM.Classes
 
             if (!_depositService.CanDeposit(amount))
             {
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -386,7 +386,7 @@ namespace ClassLibraryATM.Classes
                 _transactionService.RecordTransaction(CurrentAccount, transaction);
                 AtmJournal.Add(transaction);
 
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -396,7 +396,7 @@ namespace ClassLibraryATM.Classes
             }
             catch (Exception ex)
             {
-                DepositCompleted?.Invoke(this, new DepositCompletedEventArgs
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
@@ -410,7 +410,7 @@ namespace ClassLibraryATM.Classes
         {
             if (CurrentAccount == null)
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = null,
                     ToAccount = null,
@@ -423,7 +423,7 @@ namespace ClassLibraryATM.Classes
 
             if (State != AtmState.Authenticated)
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = null,
@@ -436,7 +436,7 @@ namespace ClassLibraryATM.Classes
 
             if (amount <= 0)
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = null,
@@ -450,7 +450,7 @@ namespace ClassLibraryATM.Classes
             var toAccount = OwnerBank.FindAccount(destinationCardNumber);
             if (toAccount == null)
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = null,
@@ -463,7 +463,7 @@ namespace ClassLibraryATM.Classes
 
             if (!_transferService.CanTransfer(CurrentAccount, toAccount, amount, 0))
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = toAccount,
@@ -488,7 +488,7 @@ namespace ClassLibraryATM.Classes
                 _transactionService.RecordTransaction(toAccount, transaction);
                 AtmJournal.Add(transaction);
 
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = toAccount,
@@ -499,7 +499,7 @@ namespace ClassLibraryATM.Classes
             }
             catch (Exception ex)
             {
-                TransferCompleted?.Invoke(this, new TransferCompletedEventArgs
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
                     FromAccount = CurrentAccount,
                     ToAccount = toAccount,
