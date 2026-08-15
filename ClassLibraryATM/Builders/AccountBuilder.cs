@@ -6,9 +6,7 @@ namespace ClassLibraryATM.Builders
     {
         private string? _cardNumber;
         private string? _ownerFullName;
-        private decimal _balance = 0;
         private string? _pinCode;
-        private decimal _dailyWithdrawLimit = 100000m;
 
         public AccountBuilder WithCardNumber(string cardNumber)
         {
@@ -22,21 +20,9 @@ namespace ClassLibraryATM.Builders
             return this;
         }
 
-        public AccountBuilder WithBalance(decimal balance)
-        {
-            _balance = balance;
-            return this;
-        }
-
         public AccountBuilder WithPinCode(string pinCode)
         {
             _pinCode = pinCode;
-            return this;
-        }
-
-        public AccountBuilder WithDailyWithdrawLimit(decimal limit)
-        {
-            _dailyWithdrawLimit = limit;
             return this;
         }
 
@@ -51,7 +37,7 @@ namespace ClassLibraryATM.Builders
             if (string.IsNullOrWhiteSpace(_pinCode))
                 throw new InvalidOperationException("PIN код обов'язковий.");
 
-            return new Account(_cardNumber, _ownerFullName, _balance, _pinCode, _dailyWithdrawLimit, DateTime.Now.AddYears(5), "UAH");
+            return new Account(_cardNumber, _ownerFullName, 0, _pinCode, 100000m, DateTime.Now.AddYears(5), "UAH");
         }
     }
 }

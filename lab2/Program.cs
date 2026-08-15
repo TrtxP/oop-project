@@ -1,3 +1,4 @@
+using ClassLibraryATM.Builders;
 using ClassLibraryATM.Classes;
 using ClassLibraryATM.Events;
 using ClassLibraryATM.Interfaces;
@@ -26,14 +27,13 @@ class Program
 
         // Инициализация банка и счетов
         var bank = new Bank("ATM №12");
-        var account1 = new Account("3456 2345 5678 4567", "Череланов Іллія", 5000m, "3451");
-        var account2 = new Account("2345 5474 3452 6786", "Левченко Крістіна", 3000m, "4655");
 
-        account1 = new Account("3456234556784567", "Черепанов Ілля", 0, "3451");
-        account2 = new Account("2345547434526786", "Левченко Крістіна", 0, "4655");
+        // Использование AccountBuilder для создания аккаунтов
+        var registerAccount1 = new AccountBuilder().WithCardNumber("3456234556784567").WithOwnerFullName("Черепанов Ілля").WithPinCode("3451").Build();
+        var registerAccount2 = new AccountBuilder().WithCardNumber("2345547434526786").WithOwnerFullName("Левченко Крістіна").WithPinCode("4655").Build();
 
-        bank.RegisterAccount(account1);
-        bank.RegisterAccount(account2);
+        bank.RegisterAccount(registerAccount1);
+        bank.RegisterAccount(registerAccount2);
 
         // Получение ATM из контейнера с инвертированными зависимостями
         var atmEventPublisher = serviceProvider.GetRequiredService<IAtmEventPublisher>();
@@ -55,7 +55,7 @@ class Program
     }
 
     static void ConfigureServices(ServiceCollection services)
-        {
+    {
         // Validators
         services.AddSingleton<ICardValidator, CardValidator>();
         services.AddSingleton<IPinValidator, PinValidator>();
@@ -90,7 +90,7 @@ class Program
     }
 
     static void SubscribeToEvents(IAtmEventPublisher atmEventPublisher)
-            {
+    {
         atmEventPublisher.Authenticated += (sender, e) =>
         {
             if (!e.Success)
