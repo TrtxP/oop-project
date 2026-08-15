@@ -37,8 +37,10 @@ class Program
 
         // Получение ATM из контейнера с инвертированными зависимостями
         var atmEventPublisher = serviceProvider.GetRequiredService<IAtmEventPublisher>();
-        var atmFactory = serviceProvider.GetRequiredService<Func<IBank, IAtm>>();
-        var atm = atmFactory(bank);
+
+        var atmSettings = new AtmBuilder().WithAtmId("1").WithAddress("Вулиця Героїв Чорнобиля").WithCashAvailable(0).Build();
+        var atmFactory = serviceProvider.GetRequiredService<Func<AtmSettings, IBank, IAtm>>();
+        var atm = atmFactory(atmSettings, bank);
 
         // Подписка на события
         SubscribeToEvents(atmEventPublisher);
@@ -76,8 +78,9 @@ class Program
         services.AddSingleton<IAtmEventPublisher, AtmEventPublisher>();
 
         // Factory для создания ATM с инъекциями
-        services.AddSingleton<Func<IBank, IAtm>>(sp => (bank) =>
+        services.AddSingleton<Func<AtmSettings, IBank, IAtm>>(sp => (settings, bank) =>
             new AutomatedTellerMachine(
+                settings,
                 bank,
                 sp.GetRequiredService<IAuthenticationService>(),
                 sp.GetRequiredService<IWithdrawService>(),

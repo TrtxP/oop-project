@@ -1,5 +1,4 @@
 using ClassLibraryATM.Classes;
-using ClassLibraryATM.Interfaces;
 
 namespace ClassLibraryATM.Builders
 {
@@ -9,7 +8,6 @@ namespace ClassLibraryATM.Builders
         private string? _address;
         private decimal _cashAvailable = 0;
         private bool _isOnline = true;
-        private IBank? _ownerBank;
         private decimal _maxWithdrawPerOperation = 30000m;
         private decimal _feePercent = 0;
 
@@ -37,12 +35,6 @@ namespace ClassLibraryATM.Builders
             return this;
         }
 
-        public AtmBuilder WithOwnerBank(IBank bank)
-        {
-            _ownerBank = bank;
-            return this;
-        }
-
         public AtmBuilder WithMaxWithdrawPerOperation(decimal max)
         {
             _maxWithdrawPerOperation = max;
@@ -55,21 +47,27 @@ namespace ClassLibraryATM.Builders
             return this;
         }
 
-        public AutomatedTellerMachine Build()
+        public AtmSettings Build()
         {
-            if (_ownerBank == null)
-                throw new InvalidOperationException("Банк власник обов'язковий.");
+            if (string.IsNullOrWhiteSpace(_atmId))
+            {
+                throw new InvalidOperationException("Ідентифікатор банкомату є обов'язковим.");
+            }
 
-            return new AutomatedTellerMachine(
-                _atmId!,
-                _address!,
-                _cashAvailable,
-                _isOnline,
-                _ownerBank,
-                DateTime.Now,
-                _maxWithdrawPerOperation,
-                _feePercent
-            );
+            if (string.IsNullOrWhiteSpace(_address))
+            {
+                throw new InvalidOperationException("Адреса банкомату є обов'язковою.");
+            }
+
+            return new AtmSettings
+            {
+                AtmId = _atmId,
+                Address = _address,
+                CashAvailable = _cashAvailable,
+                IsOnline = _isOnline,
+                MaxWithdrawPerOperation = _maxWithdrawPerOperation,
+                FeePercent = _feePercent
+            };
         }
     }
 }

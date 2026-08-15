@@ -71,7 +71,7 @@ namespace ClassLibraryATM.Classes
             _feePercent = feePercent;
         }
 
-        public AutomatedTellerMachine(IBank ownerBank, 
+        public AutomatedTellerMachine(AtmSettings settings, IBank ownerBank, 
             IAuthenticationService authService,
             IWithdrawService withdrawService,
             IDepositService depositService,
@@ -87,8 +87,12 @@ namespace ClassLibraryATM.Classes
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _atmEventsPublichser = atmEventPublisher ?? throw new ArgumentNullException(nameof(atmEventPublisher));
 
-            _isOnline = true;
-            _maxWithdrawPerOperation = 30000m;
+            AtmId = settings.AtmId;
+            Address = settings.Address;
+            CashAvailable = settings.CashAvailable;
+            _isOnline = settings.IsOnline;
+            _maxWithdrawPerOperation = settings.MaxWithdrawPerOperation;
+            _feePercent = settings.FeePercent;
             AtmJournal = new List<Transaction>();
             CurrentAccount = new Account();
             State = AtmState.Authenticated;
