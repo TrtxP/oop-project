@@ -30,14 +30,14 @@ class Program
 
         // Створення тестових акаунтів через AccountBuilder та реєстрація в банку
         var account1 = new AccountBuilder()
-            .WithCardNumber("3456234556784567")
+            .WithCardNumber("3456 2345 5678 4567")
             .WithOwnerFullName("Черепанов Ілля")
             .WithPinCode("3451")
             .WithBalance(15000m)
             .Build();
 
         var account2 = new AccountBuilder()
-            .WithCardNumber("2345547434526786")
+            .WithCardNumber("2345 5474 3452 6786")
             .WithOwnerFullName("Левченко Крістіна")
             .WithPinCode("4655")
             .WithBalance(8000m)
@@ -201,7 +201,7 @@ class Program
             Console.WriteLine("--------------------------------------------------------------");
             Console.WriteLine("Введіть номер картки та PIN (або 'exit' для завершення):");
             Console.Write("Номер картки: ");
-            string? card = Console.ReadLine();
+            string? card = ReadCardNumber(allowExit: true);
 
             if (card?.Trim().ToLower() == "exit")
                 break;
@@ -282,7 +282,7 @@ class Program
 
                     case 4:
                         Console.Write("Введіть номер картки отримувача: ");
-                        string? destCard = Console.ReadLine();
+                        string? destCard = ReadCardNumber(allowExit: false);
                         Console.Write("Введіть суму переказу: ");
                         if (decimal.TryParse(Console.ReadLine(), out decimal transferAmount) && !string.IsNullOrWhiteSpace(destCard))
                         {
@@ -346,5 +346,158 @@ class Program
         Console.WriteLine($"Стан банкомату: {atm.State}");
         Console.WriteLine($"Загальна кількість транзакцій у журналі ATM: {atm.AtmJournal.Count}");
         Console.WriteLine("================================================================\n");
+    }
+
+    static string ReadCardNumber(bool allowExit = true)
+    {
+        if (Console.IsInputRedirected)
+        {
+            return Console.ReadLine() ?? string.Empty;
+        }
+
+        int startLeft, startTop;
+        try
+        {
+            startLeft = Console.CursorLeft;
+            startTop = Console.CursorTop;
+        }
+        catch
+        {
+            return Console.ReadLine() ?? string.Empty;
+        }
+
+        var digits = new List<char>();
+        var textBuffer = new StringBuilder();
+        bool isTextMode = false;
+        bool hasTrailingSpace = false;
+        int prevLength = 0;
+
+        string GetDisplayString()
+        {
+            if (isTextMode)
+                return textBuffer.ToString();
+
+            string formatted = CardValidator.FormatCardNumber(new string(digits.ToArray()));
+            if (hasTrailingSpace && digits.Count > 0 && digits.Count % 4 == 0 && digits.Count < 16)
+            {
+                formatted += " ";
+            }
+            return formatted;
+        }
+
+        void Redraw()
+        {
+            string text = GetDisplayString();
+            try
+            {
+                Console.SetCursorPosition(startLeft, startTop);
+                Console.Write(text);
+                int spacesToClear = Math.Max(0, prevLength - text.Length);
+                if (spacesToClear > 0)
+                {
+                    Console.Write(new string(' ', spacesToClear));
+                }
+                Console.SetCursorPosition(startLeft + text.Length, startTop);
+                prevLength = text.Length;
+            }
+            catch
+            {
+                // Fallback for non-standard consoles
+            }
+        }
+
+        while (true)
+        {
+            ConsoleKeyInfo keyInfo;
+            try
+            {
+                keyInfo = Console.ReadKey(intercept: true);
+            }
+            catch
+            {
+                return Console.ReadLine() ?? string.Empty;
+            }
+
+            if (keyInfo.Key == ConsoleKey.Enter)
+            {
+                Console.WriteLine();
+                if (isTextMode)
+                {
+                    return textBuffer.ToString().Trim();
+                }
+                return CardValidator.FormatCardNumber(new string(digits.ToArray()));
+            }
+            else if (keyInfo.Key == ConsoleKey.Escape && allowExit)
+            {
+                Console.WriteLine();
+                return "exit";
+            }
+            else if (keyInfo.Key == ConsoleKey.Backspace)
+            {
+                if (isTextMode)
+                {
+                    if (textBuffer.Length > 0)
+                    {
+                        textBuffer.Remove(textBuffer.Length - 1, 1);
+                        if (textBuffer.Length == 0)
+                        {
+                            isTextMode = false;
+                        }
+                    }
+                    Redraw();
+                }
+                else
+                {
+                    if (hasTrailingSpace)
+                    {
+                        hasTrailingSpace = false;
+                    }
+                    else if (digits.Count > 0)
+                    {
+                        digits.RemoveAt(digits.Count - 1);
+                    }
+                    Redraw();
+                }
+            }
+            else if (char.IsDigit(keyInfo.KeyChar))
+            {
+                if (isTextMode)
+                {
+                    textBuffer.Append(keyInfo.KeyChar);
+                    Redraw();
+                }
+                else
+                {
+                    if (digits.Count < 16)
+                    {
+                        hasTrailingSpace = false;
+                        digits.Add(keyInfo.KeyChar);
+                        Redraw();
+                    }
+                }
+            }
+            else if (keyInfo.Key == ConsoleKey.Spacebar)
+            {
+                if (isTextMode)
+                {
+                    textBuffer.Append(' ');
+                    Redraw();
+                }
+                else if (digits.Count > 0 && digits.Count % 4 == 0 && digits.Count < 16 && !hasTrailingSpace)
+                {
+                    hasTrailingSpace = true;
+                    Redraw();
+                }
+            }
+            else if (!char.IsControl(keyInfo.KeyChar))
+            {
+                if (digits.Count == 0)
+                {
+                    isTextMode = true;
+                    textBuffer.Append(keyInfo.KeyChar);
+                    Redraw();
+                }
+            }
+        }
     }
 }

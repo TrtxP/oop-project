@@ -110,6 +110,22 @@ namespace ATMTests.ValidatorsTests
             // Assert
             Assert.NotEmpty(error);
         }
+
+        [Theory]
+        [InlineData("3456234556784567", "3456 2345 5678 4567")]
+        [InlineData("34562", "3456 2")]
+        [InlineData("3456", "3456")]
+        [InlineData("3456 2345 5678 4567", "3456 2345 5678 4567")]
+        [InlineData("", "")]
+        [InlineData(null, "")]
+        public void FormatCardNumber_FormatsDigitsWithSpacesEveryFourChars(string? input, string expected)
+        {
+            // Act
+            string result = CardValidator.FormatCardNumber(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
     }
 
     public class PinValidatorTests

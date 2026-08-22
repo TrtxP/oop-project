@@ -29,5 +29,25 @@ namespace ClassLibraryATM.Validators
 
             return string.Empty;
         }
+
+        public static string FormatCardNumber(string? cardNumber)
+        {
+            if (string.IsNullOrEmpty(cardNumber))
+                return string.Empty;
+
+            var cleanDigits = cardNumber.Where(char.IsDigit).ToArray();
+            var sb = new System.Text.StringBuilder();
+
+            for (int i = 0; i < cleanDigits.Length; i++)
+            {
+                if (i > 0 && i % 4 == 0)
+                {
+                    sb.Append(' ');
+                }
+                sb.Append(cleanDigits[i]);
+            }
+
+            return sb.ToString();
+        }
     }
 }
