@@ -1,4 +1,4 @@
-﻿using ClassLibraryATM.Enums;
+using ClassLibraryATM.Enums;
 
 namespace ClassLibraryATM.Classes
 {
@@ -18,7 +18,7 @@ namespace ClassLibraryATM.Classes
             Amount = 0;
             FromCard = "0000 0000 0000 0000";
             ToCard = "0000 0000 0000 0000";
-            Date = new DateTime(2025, 10, 23);
+            Date = DateTime.Now;
             Fee = 0;
         }
 
@@ -28,6 +28,7 @@ namespace ClassLibraryATM.Classes
             Amount = amount;
             FromCard = fromCard;
             ToCard = toCard;
+            Date = DateTime.Now;
         }
 
         public Transaction(TransactionType type, decimal amount, string fromCard, string toCard, DateTime date, decimal fee) : this()

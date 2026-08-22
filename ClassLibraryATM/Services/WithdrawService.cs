@@ -1,3 +1,4 @@
+using ClassLibraryATM.Enums;
 using ClassLibraryATM.Interfaces;
 
 namespace ClassLibraryATM.Services
@@ -19,12 +20,16 @@ namespace ClassLibraryATM.Services
             if (!_amountValidator.IsValid(amount))
                 return false;
 
+            if (account.Status != AccountStatus.Active)
+                return false;
+
             if (amount > atmCashAvailable)
                 return false;
 
             if (amount > account.Balance)
                 return false;
 
+            account.ResetDailyWithdrawCounter();
             if (account.WithdrawnToday + amount > account.DailyWithdrawLimit)
                 return false;
 
@@ -38,6 +43,9 @@ namespace ClassLibraryATM.Services
 
             if (!_amountValidator.IsValid(amount))
                 throw new InvalidOperationException("Невалідна сума для зняття.");
+
+            if (fee < 0)
+                throw new InvalidOperationException("Комісія не може бути від'ємною.");
 
             decimal totalAmount = amount + fee;
             if (totalAmount > account.Balance)

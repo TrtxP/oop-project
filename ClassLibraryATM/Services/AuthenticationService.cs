@@ -1,3 +1,4 @@
+using ClassLibraryATM.Enums;
 using ClassLibraryATM.Interfaces;
 
 namespace ClassLibraryATM.Services
@@ -16,8 +17,14 @@ namespace ClassLibraryATM.Services
             if (account == null)
                 throw new ArgumentNullException(nameof(account));
 
-            if (!_pinValidator.IsValid(pin))
+            if (account.Status == AccountStatus.Blocked || account.Status == AccountStatus.Expired)
                 return false;
+
+            if (!_pinValidator.IsValid(pin))
+            {
+                account.VerifyPin(pin ?? string.Empty);
+                return false;
+            }
 
             return account.VerifyPin(pin);
         }
@@ -26,9 +33,6 @@ namespace ClassLibraryATM.Services
         {
             if (account == null)
                 throw new ArgumentNullException(nameof(account));
-
-            // This method can be used to reset failed attempts if needed
-            // Implementation depends on Account's internal state management
         }
     }
 }

@@ -40,8 +40,8 @@ namespace ClassLibraryATM.Classes
             _maxWithdrawPerOperation = 30000m;
             _feePercent = 0;
             AtmJournal = new List<Transaction>();
-            CurrentAccount = new Account();
-            State = AtmState.Authenticated;
+            CurrentAccount = null;
+            State = AtmState.Idle;
             _authService = new AuthenticationService(new Validators.PinValidator());
             _withdrawService = new WithdrawService(new Validators.AmountValidator());
             _depositService = new DepositService(new Validators.AmountValidator());
@@ -56,16 +56,12 @@ namespace ClassLibraryATM.Classes
             Address = address;
             CashAvailable = cashAvailable;
             _isOnline = isOnline;
-            OwnerBank = ownerBank;
+            OwnerBank = ownerBank ?? new Bank();
+            State = _isOnline ? AtmState.Idle : AtmState.OutOfService;
         }
 
-        public AutomatedTellerMachine(string atmId, string address, decimal cashAvailable, bool isOnline, IBank ownerBank, DateTime lastServiceDate, decimal maxWithdrawPerOperation, decimal feePercent) : this()
+        public AutomatedTellerMachine(string atmId, string address, decimal cashAvailable, bool isOnline, IBank ownerBank, DateTime lastServiceDate, decimal maxWithdrawPerOperation, decimal feePercent) : this(atmId, address, cashAvailable, isOnline, ownerBank)
         {
-            AtmId = atmId;
-            Address = address;
-            CashAvailable = cashAvailable;
-            _isOnline = isOnline;
-            OwnerBank = ownerBank;
             LastServiceDate = lastServiceDate;
             _maxWithdrawPerOperation = maxWithdrawPerOperation;
             _feePercent = feePercent;
@@ -94,15 +90,15 @@ namespace ClassLibraryATM.Classes
             _maxWithdrawPerOperation = settings.MaxWithdrawPerOperation;
             _feePercent = settings.FeePercent;
             AtmJournal = new List<Transaction>();
-            CurrentAccount = new Account();
-            State = AtmState.Authenticated;
+            CurrentAccount = null;
+            State = _isOnline ? AtmState.Idle : AtmState.OutOfService;
             LastServiceDate = DateTime.Now;
         }
 
         public void Logout()
         {
             CurrentAccount = null;
-            State = AtmState.CardInserted;
+            State = _isOnline ? AtmState.Idle : AtmState.OutOfService;
         }
 
         public bool Authenticate(string cardNumber, string pin)
@@ -121,7 +117,7 @@ namespace ClassLibraryATM.Classes
 
             if (string.IsNullOrWhiteSpace(cardNumber) || string.IsNullOrWhiteSpace(pin))
             {
-                State = AtmState.CardInserted;
+                State = AtmState.Idle;
                 _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber ?? "NULL",
@@ -135,11 +131,36 @@ namespace ClassLibraryATM.Classes
 
             if (account == null)
             {
+                State = AtmState.Idle;
                 _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber,
                     Success = false,
                     Message = "Картку не знайдено."
+                });
+                return false;
+            }
+
+            if (account.Status == AccountStatus.Blocked)
+            {
+                State = AtmState.Idle;
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
+                {
+                    CardNumber = cardNumber,
+                    Success = false,
+                    Message = "Картка заблокована. Зверніться до відділення банку."
+                });
+                return false;
+            }
+
+            if (account.Status == AccountStatus.Expired)
+            {
+                State = AtmState.Idle;
+                _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
+                {
+                    CardNumber = cardNumber,
+                    Success = false,
+                    Message = "Термін дії картки закінчився."
                 });
                 return false;
             }
@@ -160,12 +181,16 @@ namespace ClassLibraryATM.Classes
             }
             else
             {
-                State = AtmState.CardInserted;
+                State = AtmState.Idle;
+                string message = account.Status == AccountStatus.Blocked
+                    ? "Картку заблоковано через 3 невірні спроби введення PIN-коду."
+                    : "Некоректний PIN код.";
+
                 _atmEventsPublichser.PublishAuthenticated(this, new AuthenticatedEventArgs
                 {
                     CardNumber = cardNumber,
                     Success = false,
-                    Message = "Некоректний PIN код."
+                    Message = message
                 });
                 return false;
             }
@@ -173,18 +198,7 @@ namespace ClassLibraryATM.Classes
 
         public void CheckBalance()
         {
-            if (CurrentAccount == null)
-            {
-                _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
-                {
-                    Account = null,
-                    Balance = 0,
-                    Message = "Немає активного рахунку."
-                });
-                return;
-            }
-
-            if (State != AtmState.Authenticated)
+            if (CurrentAccount == null || State != AtmState.Authenticated)
             {
                 _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
                 {
@@ -194,6 +208,18 @@ namespace ClassLibraryATM.Classes
                 });
                 return;
             }
+
+            var transaction = new Transaction(
+                TransactionType.CheckBalance,
+                0,
+                CurrentAccount.CardNumber ?? "0000000000000000",
+                CurrentAccount.CardNumber ?? "0000000000000000",
+                DateTime.Now,
+                0
+            );
+            _transactionService.RecordTransaction(CurrentAccount, transaction);
+            AtmJournal.Add(transaction);
+            OwnerBank.BackLedger?.Add(transaction);
 
             _atmEventsPublichser.PublishBalanceChecked(this, new BalanceCheckedEventArgs
             {
@@ -205,14 +231,14 @@ namespace ClassLibraryATM.Classes
 
         public void Withdraw(decimal amount)
         {
-            if (CurrentAccount == null)
+            if (CurrentAccount == null || State != AtmState.Authenticated)
             {
                 _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
-                    Account = null,
+                    Account = CurrentAccount,
                     Amount = amount,
                     Success = false,
-                    Message = "Немає активного рахунку."
+                    Message = "Користувач не авторизований."
                 });
                 return;
             }
@@ -230,21 +256,8 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (State != AtmState.Authenticated)
-            {
-                _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
-                {
-                    Account = CurrentAccount,
-                    Amount = amount,
-                    Success = false,
-                    Message = "Користувач не авторизований."
-                });
-                return;
-            }
-
             if (CurrentAccount.Status != AccountStatus.Active)
             {
-                State = AtmState.CardInserted;
                 _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
@@ -257,7 +270,6 @@ namespace ClassLibraryATM.Classes
 
             if (amount <= 0)
             {
-                State = AtmState.Authenticated;
                 _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
@@ -282,29 +294,41 @@ namespace ClassLibraryATM.Classes
 
             if (!_withdrawService.CanWithdraw(CurrentAccount, amount, CashAvailable))
             {
+                string message = "Неможливо зняти цю суму. Перевірте баланс та ліміти.";
+                if (amount > CashAvailable)
+                    message = "У банкоматі недостатньо готівки.";
+                else if (amount > CurrentAccount.Balance)
+                    message = "Недостатньо коштів на рахунку.";
+                else if (CurrentAccount.WithdrawnToday + amount > CurrentAccount.DailyWithdrawLimit)
+                    message = "Перевищено денний ліміт зняття коштів.";
+
                 _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
                     Account = CurrentAccount,
                     Amount = amount,
                     Success = false,
-                    Message = "Неможливо зняти цю суму. Перевірте баланс та ліміти."
+                    Message = message
                 });
                 return;
             }
 
             try
             {
-                _withdrawService.ProcessWithdraw(CurrentAccount, amount, 0);
+                decimal fee = _feePercent > 0 ? Math.Round(amount * (_feePercent / 100m), 2) : 0m;
+                _withdrawService.ProcessWithdraw(CurrentAccount, amount, fee);
                 CashAvailable -= amount;
 
                 var transaction = new Transaction(
                     TransactionType.Withdraw,
                     amount,
                     CurrentAccount.CardNumber ?? "0000000000000000",
-                    CurrentAccount.CardNumber ?? "0000000000000000"
+                    CurrentAccount.CardNumber ?? "0000000000000000",
+                    DateTime.Now,
+                    fee
                 );
                 _transactionService.RecordTransaction(CurrentAccount, transaction);
                 AtmJournal.Add(transaction);
+                OwnerBank.BackLedger?.Add(transaction);
 
                 _atmEventsPublichser.PublishWithdrawCompleted(this, new WithdrawCompletedEventArgs
                 {
@@ -328,19 +352,7 @@ namespace ClassLibraryATM.Classes
 
         public void Deposit(decimal amount)
         {
-            if (CurrentAccount == null)
-            {
-                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
-                {
-                    Account = null,
-                    Amount = amount,
-                    Success = false,
-                    Message = "Немає активного рахунку."
-                });
-                return;
-            }
-
-            if (State != AtmState.Authenticated)
+            if (CurrentAccount == null || State != AtmState.Authenticated)
             {
                 _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
@@ -352,7 +364,32 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (amount <= 0)
+            if (!_isOnline)
+            {
+                State = AtmState.OutOfService;
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
+                {
+                    Account = CurrentAccount,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Банкомат не активний."
+                });
+                return;
+            }
+
+            if (CurrentAccount.Status != AccountStatus.Active)
+            {
+                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
+                {
+                    Account = CurrentAccount,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Картка не активна."
+                });
+                return;
+            }
+
+            if (amount <= 0 || !_depositService.CanDeposit(amount))
             {
                 _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
@@ -360,18 +397,6 @@ namespace ClassLibraryATM.Classes
                     Amount = amount,
                     Success = false,
                     Message = "Сума повинна бути більше нуля."
-                });
-                return;
-            }
-
-            if (!_depositService.CanDeposit(amount))
-            {
-                _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
-                {
-                    Account = CurrentAccount,
-                    Amount = amount,
-                    Success = false,
-                    Message = "Невалідна сума для поповнення."
                 });
                 return;
             }
@@ -385,10 +410,13 @@ namespace ClassLibraryATM.Classes
                     TransactionType.Deposit,
                     amount,
                     CurrentAccount.CardNumber ?? "0000000000000000",
-                    CurrentAccount.CardNumber ?? "0000000000000000"
+                    CurrentAccount.CardNumber ?? "0000000000000000",
+                    DateTime.Now,
+                    0
                 );
                 _transactionService.RecordTransaction(CurrentAccount, transaction);
                 AtmJournal.Add(transaction);
+                OwnerBank.BackLedger?.Add(transaction);
 
                 _atmEventsPublichser.PublishDepositCompleted(this, new DepositCompletedEventArgs
                 {
@@ -412,20 +440,7 @@ namespace ClassLibraryATM.Classes
 
         public void Transfer(string destinationCardNumber, decimal amount)
         {
-            if (CurrentAccount == null)
-            {
-                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
-                {
-                    FromAccount = null,
-                    ToAccount = null,
-                    Amount = amount,
-                    Success = false,
-                    Message = "Немає активного рахунку."
-                });
-                return;
-            }
-
-            if (State != AtmState.Authenticated)
+            if (CurrentAccount == null || State != AtmState.Authenticated)
             {
                 _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
@@ -434,6 +449,33 @@ namespace ClassLibraryATM.Classes
                     Amount = amount,
                     Success = false,
                     Message = "Користувач не авторизований."
+                });
+                return;
+            }
+
+            if (!_isOnline)
+            {
+                State = AtmState.OutOfService;
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
+                {
+                    FromAccount = CurrentAccount,
+                    ToAccount = null,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Банкомат не активний."
+                });
+                return;
+            }
+
+            if (CurrentAccount.Status != AccountStatus.Active)
+            {
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
+                {
+                    FromAccount = CurrentAccount,
+                    ToAccount = null,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Картка не активна."
                 });
                 return;
             }
@@ -447,6 +489,19 @@ namespace ClassLibraryATM.Classes
                     Amount = amount,
                     Success = false,
                     Message = "Сума повинна бути більше нуля."
+                });
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(destinationCardNumber))
+            {
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
+                {
+                    FromAccount = CurrentAccount,
+                    ToAccount = null,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Номер картки одержувача не може бути порожнім."
                 });
                 return;
             }
@@ -465,7 +520,34 @@ namespace ClassLibraryATM.Classes
                 return;
             }
 
-            if (!_transferService.CanTransfer(CurrentAccount, toAccount, amount, 0))
+            if (ReferenceEquals(CurrentAccount, toAccount) || (!string.IsNullOrEmpty(CurrentAccount.CardNumber) && CurrentAccount.CardNumber == toAccount.CardNumber))
+            {
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
+                {
+                    FromAccount = CurrentAccount,
+                    ToAccount = toAccount,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Неможливо здійснити переказ на власну картку."
+                });
+                return;
+            }
+
+            if (toAccount.Status != AccountStatus.Active)
+            {
+                _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
+                {
+                    FromAccount = CurrentAccount,
+                    ToAccount = toAccount,
+                    Amount = amount,
+                    Success = false,
+                    Message = "Картка одержувача не активна."
+                });
+                return;
+            }
+
+            decimal fee = _feePercent > 0 ? Math.Round(amount * (_feePercent / 100m), 2) : 0m;
+            if (!_transferService.CanTransfer(CurrentAccount, toAccount, amount, fee))
             {
                 _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {
@@ -480,17 +562,20 @@ namespace ClassLibraryATM.Classes
 
             try
             {
-                _transferService.ProcessTransfer(CurrentAccount, toAccount, amount, 0);
+                _transferService.ProcessTransfer(CurrentAccount, toAccount, amount, fee);
 
                 var transaction = new Transaction(
                     TransactionType.Transfer,
                     amount,
                     CurrentAccount.CardNumber ?? "0000000000000000",
-                    toAccount.CardNumber ?? "0000000000000000"
+                    toAccount.CardNumber ?? "0000000000000000",
+                    DateTime.Now,
+                    fee
                 );
                 _transactionService.RecordTransaction(CurrentAccount, transaction);
                 _transactionService.RecordTransaction(toAccount, transaction);
                 AtmJournal.Add(transaction);
+                OwnerBank.BackLedger?.Add(transaction);
 
                 _atmEventsPublichser.PublishTransferCompleted(this, new TransferCompletedEventArgs
                 {

@@ -1,34 +1,45 @@
 using ClassLibraryATM.Interfaces;
+using ClassLibraryATM.Repositories;
 
 namespace ClassLibraryATM.Classes
 {
     public class Bank : IBank
     {
-        private readonly Dictionary<string, IAccount> _accounts;
+        private readonly IAccountRepository _accountRepository;
         private decimal _transferFeePercent;
         private decimal _minBalanceRequired;
 
         public string? Name { get; private set; }
-        public IReadOnlyDictionary<string, IAccount> Accounts => _accounts.AsReadOnly();
+        public IReadOnlyDictionary<string, IAccount> Accounts =>
+            _accountRepository.GetAll().ToDictionary(a => a.CardNumber ?? string.Empty);
         public List<Transaction> BackLedger { get; private set; }
 
-        public Bank()
+        public Bank() : this("ATM №12", new AccountRepository())
         {
-            Name = "ATM №12";
-            _accounts = new Dictionary<string, IAccount>();
+        }
+
+        public Bank(string name) : this(name, new AccountRepository())
+        {
+        }
+
+        public Bank(string name, IAccountRepository accountRepository)
+        {
+            Name = name;
+            _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
             _transferFeePercent = 0;
             _minBalanceRequired = 0;
             BackLedger = new List<Transaction>();
         }
 
-        public Bank(string name) : this()
+        public Bank(string name, Dictionary<string, IAccount> accounts) : this(name, new AccountRepository())
         {
-            Name = name;
-        }
-
-        public Bank(string name, Dictionary<string, IAccount> accounts) : this(name)
-        {
-            _accounts = accounts ?? new Dictionary<string, IAccount>();
+            if (accounts != null)
+            {
+                foreach (var acc in accounts.Values)
+                {
+                    _accountRepository.Add(acc);
+                }
+            }
         }
 
         public Bank(string name, Dictionary<string, IAccount> accounts, decimal transferFeePercent, decimal minBalanceRequired) : this(name, accounts)
@@ -37,21 +48,23 @@ namespace ClassLibraryATM.Classes
             _minBalanceRequired = minBalanceRequired;
         }
 
-        public Bank(Bank other)
+        public Bank(Bank other) : this(other.Name ?? "Банк", new AccountRepository())
         {
-            Name = other.Name;
-            _accounts = new Dictionary<string, IAccount>(other._accounts);
             _transferFeePercent = other._transferFeePercent;
             _minBalanceRequired = other._minBalanceRequired;
             BackLedger = new List<Transaction>(other.BackLedger);
+            foreach (var acc in other._accountRepository.GetAll())
+            {
+                _accountRepository.Add(acc);
+            }
         }
 
         public void RegisterAccount(IAccount acc)
         {
-            if (acc?.CardNumber != null)
-            {
-            _accounts[acc.CardNumber] = acc;
-        }
+            if (acc == null)
+                throw new ArgumentNullException(nameof(acc));
+
+            _accountRepository.Add(acc);
         }
 
         public IAccount? FindAccount(string cardNumber)
@@ -59,8 +72,7 @@ namespace ClassLibraryATM.Classes
             if (string.IsNullOrWhiteSpace(cardNumber))
                 return null;
 
-            _accounts.TryGetValue(cardNumber, out var acc);
-            return acc;
+            return _accountRepository.FindByCardNumber(cardNumber);
         }
     }
 }

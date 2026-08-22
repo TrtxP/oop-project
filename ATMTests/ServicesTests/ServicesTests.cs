@@ -210,4 +210,101 @@ namespace ATMTests.ServicesTests
             Assert.Throws<InvalidOperationException>(() => _transferService.ProcessTransfer(_fromAccount, _toAccount, invalidAmount));
         }
     }
+
+    public class AuthenticationServiceTests
+    {
+        private readonly AuthenticationService _authService;
+        private readonly Account _testAccount;
+
+        public AuthenticationServiceTests()
+        {
+            _authService = new AuthenticationService(new PinValidator());
+            _testAccount = new Account("1234 5678 9012 3456", "Test User", 1000m, "1234");
+        }
+
+        [Fact]
+        public void Authenticate_CorrectPin_ReturnsTrue()
+        {
+            // Act
+            bool result = _authService.Authenticate(_testAccount, "1234");
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public void Authenticate_IncorrectPin_ReturnsFalse()
+        {
+            // Act
+            bool result = _authService.Authenticate(_testAccount, "9999");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void Authenticate_InvalidFormatPin_ReturnsFalse()
+        {
+            // Act
+            bool result = _authService.Authenticate(_testAccount, "12");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void Authenticate_ThreeFailedAttempts_BlocksAccount()
+        {
+            // Act
+            _authService.Authenticate(_testAccount, "0001");
+            _authService.Authenticate(_testAccount, "0002");
+            _authService.Authenticate(_testAccount, "0003");
+
+            // Assert
+            Assert.Equal(ClassLibraryATM.Enums.AccountStatus.Blocked, _testAccount.Status);
+            Assert.False(_authService.Authenticate(_testAccount, "1234"));
+        }
+    }
+
+    public class TransactionServiceTests
+    {
+        private readonly TransactionService _transactionService;
+        private readonly Account _testAccount;
+
+        public TransactionServiceTests()
+        {
+            _transactionService = new TransactionService();
+            _testAccount = new Account("1234 5678 9012 3456", "Test User", 1000m, "1234");
+        }
+
+        [Fact]
+        public void RecordTransaction_ValidTransaction_AddsToAccountHistory()
+        {
+            // Arrange
+            var transaction = new Transaction(
+                ClassLibraryATM.Enums.TransactionType.Withdraw,
+                200m,
+                "1234 5678 9012 3456",
+                "1234 5678 9012 3456"
+            );
+
+            // Act
+            _transactionService.RecordTransaction(_testAccount, transaction);
+
+            // Assert
+            var history = _transactionService.GetAccountHistory(_testAccount);
+            Assert.Single(history);
+            Assert.Equal(200m, history[0].Amount);
+        }
+
+        [Fact]
+        public void RecordTransaction_NullAccount_ThrowsArgumentNullException()
+        {
+            // Arrange
+            var transaction = new Transaction();
+
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => _transactionService.RecordTransaction(null!, transaction));
+        }
+    }
 }

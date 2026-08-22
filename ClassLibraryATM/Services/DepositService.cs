@@ -1,3 +1,4 @@
+using ClassLibraryATM.Enums;
 using ClassLibraryATM.Interfaces;
 
 namespace ClassLibraryATM.Services
@@ -20,6 +21,9 @@ namespace ClassLibraryATM.Services
         {
             if (account == null)
                 throw new ArgumentNullException(nameof(account));
+
+            if (account.Status != AccountStatus.Active)
+                throw new InvalidOperationException("Рахунок не активний для поповнення.");
 
             if (!_amountValidator.IsValid(amount))
                 throw new InvalidOperationException("Невалідна сума для поповнення.");

@@ -27,26 +27,30 @@ namespace ClassLibraryATM.Classes
             _pinCode = "0000";
             _isBlocked = false;
             _failedPinAttempts = 0;
-            _expireDate = new DateTime(2034, 03, 22);
-            _currency = "USD";
+            _expireDate = DateTime.Now.AddYears(5);
+            _currency = "UAH";
             DailyWithdrawLimit = 100000m;
             WithdrawnToday = 0;
-            _lastWithdrawDate = new DateTime(2025, 11, 22);
+            _lastWithdrawDate = DateTime.Today;
             History = new List<Transaction>();
             Status = AccountStatus.Active;
         }
 
         public Account(string cardNumber, string ownerFullName, decimal balance, string pinCode) : this()
         {
-            if (cardNumber != null && cardNumber.Replace(" ", "").Length == 16 && cardNumber.All(char.IsDigit))
+            if (!string.IsNullOrWhiteSpace(cardNumber))
             {
-                CardNumber = cardNumber;
+                string cleaned = cardNumber.Replace(" ", "");
+                if (cleaned.Length == 16 && cleaned.All(char.IsDigit))
+                {
+                    CardNumber = cardNumber;
+                }
             }
 
             OwnerFullName = ownerFullName;
-            Balance = balance;
+            Balance = balance >= 0 ? balance : 0;
 
-            if (pinCode != null && pinCode.Length == 4 && pinCode.All(char.IsDigit))
+            if (!string.IsNullOrWhiteSpace(pinCode) && pinCode.Length == 4 && pinCode.All(char.IsDigit))
             {
                 _pinCode = pinCode;
             }
@@ -54,7 +58,7 @@ namespace ClassLibraryATM.Classes
 
         public Account(string cardNumber, string ownerFullName, decimal balance, string pinCode, decimal dailyWithdrawLimit, DateTime expireDate, string currency) : this(cardNumber, ownerFullName, balance, pinCode)
         {
-            DailyWithdrawLimit = dailyWithdrawLimit;
+            DailyWithdrawLimit = dailyWithdrawLimit > 0 ? dailyWithdrawLimit : 100000m;
             _expireDate = expireDate;
             _currency = currency;
         }
@@ -78,27 +82,15 @@ namespace ClassLibraryATM.Classes
 
         public bool VerifyPin(string pin)
         {
-            if (_isBlocked)
+            if (_isBlocked || Status == AccountStatus.Blocked)
                 return false;
 
-            if (pin.Length != 4 || !pin.All(char.IsDigit))
+            if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit) || pin != _pinCode)
             {
                 _failedPinAttempts++;
                 if (_failedPinAttempts >= 3)
                 {
-                    _isBlocked = true;
-                    Status = AccountStatus.Blocked;
-                }
-                return false;
-            }
-
-            if (pin != _pinCode)
-            {
-                _failedPinAttempts++;
-                if (_failedPinAttempts >= 3)
-                {
-                    _isBlocked = true;
-                    Status = AccountStatus.Blocked;
+                    Block();
                 }
                 return false;
             }
@@ -113,12 +105,6 @@ namespace ClassLibraryATM.Classes
                 throw new InvalidOperationException("Сума повинна бути більше нуля.");
 
             Balance += amount;
-            AddTransaction(new Transaction(
-                TransactionType.Deposit,
-                amount,
-                CardNumber ?? "0000000000000000",
-                CardNumber ?? "0000000000000000"
-            ));
         }
 
         public void Withdraw(decimal amount)
@@ -129,14 +115,9 @@ namespace ClassLibraryATM.Classes
             if (amount > Balance)
                 throw new InvalidOperationException("Недостатньо коштів.");
 
+            ResetDailyWithdrawCounter();
             Balance -= amount;
             WithdrawnToday += amount;
-            AddTransaction(new Transaction(
-                TransactionType.Withdraw,
-                amount,
-                CardNumber ?? "0000000000000000",
-                CardNumber ?? "0000000000000000"
-            ));
         }
 
         public void AddTransaction(Transaction transaction)

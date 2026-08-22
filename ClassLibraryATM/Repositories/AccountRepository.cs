@@ -25,8 +25,11 @@ namespace ClassLibraryATM.Repositories
             if (string.IsNullOrWhiteSpace(cardNumber))
                 return null;
 
-            _accounts.TryGetValue(cardNumber, out var account);
-            return account;
+            if (_accounts.TryGetValue(cardNumber, out var account))
+                return account;
+
+            string normalized = cardNumber.Replace(" ", "");
+            return _accounts.Values.FirstOrDefault(a => a.CardNumber?.Replace(" ", "") == normalized);
         }
 
         public IEnumerable<IAccount> GetAll()
@@ -39,7 +42,7 @@ namespace ClassLibraryATM.Repositories
             if (string.IsNullOrWhiteSpace(cardNumber))
                 return false;
 
-            return _accounts.ContainsKey(cardNumber);
+            return FindByCardNumber(cardNumber) != null;
         }
     }
 }
